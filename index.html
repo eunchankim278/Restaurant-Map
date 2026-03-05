@@ -1,1430 +1,164 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <title>대한민국 맛집 지도 메모</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
-  <style>
-    :root {
-      --bg: #f8fafc;
-      --panel-bg: #ffffff;
-      --border: #e2e8f0;
-      --accent: #2563eb;
-      --accent-soft: rgba(37, 99, 235, 0.1);
-      --accent-strong: #1d4ed8;
-      --text-main: #0f172a;
-      --text-muted: #6b7280;
-      --danger: #dc2626;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-        sans-serif;
-      background: var(--bg);
-      color: var(--text-main);
-    }
-
-    .app {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    header {
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--border);
-      background: var(--panel-bg);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-    }
-
-    header .title-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
-    header p {
-      margin: 0;
-      font-size: 13px;
-      color: var(--text-muted);
-    }
-
-    .level-pill {
-      padding: 6px 12px;
-      border-radius: 999px;
-      border: 1px solid var(--accent-soft);
-      background: var(--accent-soft);
-      color: var(--accent-strong);
-      font-size: 12px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .level-pill span.badge {
-      display: inline-flex;
-      width: 6px;
-      height: 6px;
-      border-radius: 999px;
-      background: var(--accent-strong);
-    }
-
-    .main-layout {
-      flex: 1;
-      display: flex;
-      flex-direction: row;
-      gap: 1px;
-      background: var(--border);
-      min-height: 0;
-    }
-
-    .map-panel {
-      flex: 3;
-      min-width: 0;
-      background: var(--panel-bg);
-      display: flex;
-      flex-direction: column;
-      position: relative;
-    }
-
-    .map-toolbar {
-      padding: 8px 14px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .breadcrumbs {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      font-size: 13px;
-      color: var(--text-muted);
-      align-items: center;
-    }
-
-    .breadcrumb-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .breadcrumb-sep {
-      opacity: 0.5;
-    }
-
-    .breadcrumb-link {
-      cursor: pointer;
-      color: var(--accent-strong);
-    }
-
-    .breadcrumb-link:hover {
-      text-decoration: underline;
-    }
-
-    #map {
-      flex: 1;
-      min-height: 300px;
-      touch-action: manipulation;
-      cursor: pointer;
-    }
-    #map .leaflet-interactive {
-      cursor: pointer;
-      pointer-events: auto !important;
-    }
-
-    .map-wrap {
-      position: relative;
-      flex: 1;
-      min-height: 0;
-      display: flex;
-    }
-
-    .map-insets {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      pointer-events: none;
-      z-index: 600;
-    }
-    .map-insets.map-insets-hidden {
-      display: none;
-    }
-
-    .map-inset {
-      position: absolute;
-      bottom: 12px;
-      width: 100px;
-      height: 76px;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-      border: 1px solid var(--border);
-      background: var(--panel-bg);
-    }
-    .map-inset-jeju {
-      left: 12px;
-    }
-    .map-inset-ulleungdo {
-      right: 12px;
-      top: 12px;
-      bottom: auto;
-    }
-    .map-inset-label {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 3px 6px;
-      font-size: 10px;
-      font-weight: 600;
-      background: rgba(255, 255, 255, 0.95);
-      text-align: center;
-      z-index: 1000;
-      border-top: 1px solid var(--border);
-    }
-
-    /* 시/도 상시 라벨 */
-    .sido-label {
-      font-size: 13px !important;
-      font-weight: 700 !important;
-      color: #1e3a8a !important;
-      background: rgba(255, 255, 255, 0.92) !important;
-      border: 1px solid rgba(30, 58, 138, 0.25) !important;
-      padding: 4px 8px !important;
-      border-radius: 6px !important;
-      white-space: nowrap !important;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
-    }
-
-    .list-panel {
-      flex: 2;
-      min-width: 280px;
-      max-width: 420px;
-      background: var(--panel-bg);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .list-header {
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .list-header-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .chip {
-      padding: 3px 8px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--text-muted);
-      background: #f9fafb;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .list-body {
-      padding: 8px 0;
-      overflow-y: auto;
-    }
-
-    .empty-state {
-      padding: 24px 16px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-
-    .memo-item {
-      padding: 10px 16px;
-      border-bottom: 1px solid #f1f5f9;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      cursor: pointer;
-    }
-
-    .memo-item:hover {
-      background: #f9fafb;
-    }
-
-    .memo-row-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .memo-title {
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .memo-meta {
-      font-size: 11px;
-      color: var(--text-muted);
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .memo-visited {
-      font-size: 11px;
-      padding: 2px 6px;
-      border-radius: 999px;
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #047857;
-      background: rgba(16, 185, 129, 0.08);
-    }
-
-    .memo-visited.no {
-      border-color: rgba(148, 163, 184, 0.6);
-      color: #475569;
-      background: rgba(148, 163, 184, 0.08);
-    }
-
-    .memo-content-preview {
-      font-size: 12px;
-      color: var(--text-muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* Modal */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.34);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-
-    .modal-backdrop.open {
-      display: flex;
-    }
-
-    .modal {
-      width: 100%;
-      max-width: 420px;
-      background: var(--panel-bg);
-      border-radius: 16px;
-      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
-      overflow: hidden;
-      animation: modalFadeIn 0.18s ease-out;
-    }
-
-    @keyframes modalFadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(8px) scale(0.98);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
-
-    .modal-header {
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .modal-title-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .modal-title {
-      margin: 0;
-      font-size: 15px;
-      font-weight: 600;
-    }
-
-    .modal-subtitle {
-      margin: 0;
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .modal-close-btn {
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      padding: 4px;
-      border-radius: 999px;
-      color: var(--text-muted);
-    }
-
-    .modal-close-btn:hover {
-      background: #f1f5f9;
-    }
-
-    .modal-body {
-      padding: 16px 18px 4px 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 13px;
-    }
-
-    .field-label {
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .field-label span.hint {
-      font-weight: 400;
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .checkbox-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-      color: var(--text-main);
-    }
-
-    input[type="text"],
-    textarea {
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      padding: 8px 10px;
-      font-size: 13px;
-      font-family: inherit;
-      resize: vertical;
-      min-height: 34px;
-    }
-
-    textarea {
-      min-height: 80px;
-    }
-
-    input[type="text"]:focus,
-    textarea:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent-soft);
-    }
-
-    .modal-footer {
-      padding: 10px 18px 14px 18px;
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      border-top: 1px solid #f1f5f9;
-      margin-top: 4px;
-    }
-
-    .btn {
-      border-radius: 999px;
-      border: 1px solid transparent;
-      padding: 8px 14px;
-      font-size: 13px;
-      cursor: pointer;
-      font-family: inherit;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: #e5e7eb;
-      color: var(--text-main);
-    }
-
-    .btn-ghost {
-      background: transparent;
-      border-color: var(--border);
-      color: var(--text-muted);
-    }
-
-    .btn-ghost:hover {
-      background: #f9fafb;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-      color: white;
-      border: none;
-      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
-    }
-
-    .btn-primary:hover {
-      filter: brightness(1.03);
-    }
-
-    .pill-small {
-      font-size: 11px;
-      padding: 3px 7px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      color: var(--text-muted);
-      background: #f9fafb;
-    }
-
-    .pill-small.accent {
-      border-color: rgba(37, 99, 235, 0.3);
-      color: var(--accent-strong);
-      background: rgba(37, 99, 235, 0.06);
-    }
-
-    .map-legend {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .map-legend-swatch {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .swatch {
-      width: 12px;
-      height: 12px;
-      border-radius: 4px;
-      border: 1px solid rgba(148, 163, 184, 0.3);
-    }
-
-    .swatch-sido {
-      background: rgba(59, 130, 246, 0.12);
-    }
-
-    .swatch-sigungu {
-      background: rgba(16, 185, 129, 0.12);
-    }
-
-    .swatch-dong {
-      background: rgba(234, 179, 8, 0.14);
-    }
-
-    .pill-level {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.45);
-      color: var(--text-muted);
-      background: rgba(248, 250, 252, 0.9);
-    }
-
-    .pill-level strong {
-      color: var(--accent-strong);
-      margin-left: 2px;
-    }
-
-    .pill-level span {
-      opacity: 0.85;
-    }
-
-    .map-hint {
-      font-size: 11px;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 999px;
-      background: var(--accent-strong);
-    }
-
-    .pill-outline {
-      padding: 3px 8px;
-      border-radius: 999px;
-      border: 1px dashed rgba(148, 163, 184, 0.8);
-      font-size: 11px;
-      color: var(--text-muted);
-      background: rgba(248, 250, 252, 0.9);
-    }
-
-    @media (max-width: 900px) {
-      .main-layout {
-        flex-direction: column;
-      }
-      .list-panel {
-        max-width: none;
-        min-height: 200px;
-      }
-      header {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-    }
-
-    @media (max-width: 600px) {
-      header {
-        padding: 12px 14px;
-      }
-      header h1 {
-        font-size: 17px;
-      }
-      header p {
-        font-size: 12px;
-      }
-      .level-pill {
-        font-size: 11px;
-        padding: 5px 10px;
-      }
-      .map-toolbar {
-        flex-wrap: wrap;
-        padding: 6px 10px;
-      }
-      .map-legend {
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="app">
-    <header>
-      <div class="title-wrap">
-        <h1>대한민국 행정구역 기반 맛집 메모</h1>
-        <p>전도 → 시/도 → 구/군 → 동 단위로 내려가며 동별 맛집 기록을 남겨보세요.</p>
-      </div>
-      <div class="level-pill" id="level-pill">
-        <span class="badge"></span>
-        <span id="level-pill-text">현재 단계: 전국 전도 (시/도 선택)</span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>지도 맛집 기록</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* SVG 클릭 하이라이트 */
+      .map-svg [data-province] { cursor: pointer; }
+      .map-svg [data-district] { cursor: pointer; }
+      .map-svg .dimmed { opacity: 0.12; pointer-events: none; }
+      .map-svg .active-province { opacity: 1; }
+      .map-svg [data-province]:active,
+      .map-svg [data-district]:active { opacity: 0.75; }
+      /* iOS safe area */
+      .safe-top { padding-top: env(safe-area-inset-top); }
+      .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-900 antialiased">
+    <header class="safe-top fixed inset-x-0 top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <div class="mx-auto flex max-w-md items-center gap-2 px-4 py-3">
+        <button
+          id="backBtn"
+          class="hidden h-11 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 active:bg-slate-100"
+          type="button"
+        >
+          전체 지도
+        </button>
+        <div class="min-w-0 flex-1">
+          <div class="truncate text-base font-bold" id="titleText">전국 지도</div>
+          <div class="truncate text-xs text-slate-500" id="subtitleText">시/도를 탭해 확대하세요</div>
+        </div>
       </div>
     </header>
 
-    <div class="main-layout">
-      <section class="map-panel">
-        <div class="map-toolbar">
-          <div class="breadcrumbs" id="breadcrumbs">
-            <div class="breadcrumb-item">
-              <span class="breadcrumb-link" data-level="country">대한민국</span>
-            </div>
-          </div>
-          <div class="map-legend">
-            <div class="map-legend-swatch">
-              <span class="swatch swatch-sido"></span>
-              <span>시/도</span>
-            </div>
-            <div class="map-legend-swatch">
-              <span class="swatch swatch-sigungu"></span>
-              <span>구/군</span>
-            </div>
-            <div class="map-legend-swatch">
-              <span class="swatch swatch-dong"></span>
-              <span>동 (클릭해서 메모)</span>
-            </div>
-          </div>
+    <main class="mx-auto max-w-md px-4 pb-28 pt-20">
+      <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+          <div class="text-sm font-semibold text-slate-800">지도</div>
+          <div class="text-xs text-slate-500" id="hintText">시/도 탭 → 구/군 탭 → 기록 저장</div>
         </div>
-        <div class="map-wrap">
-          <div id="map"></div>
-          <div id="map-insets" class="map-insets">
-            <div id="map-inset-jeju" class="map-inset map-inset-jeju">
-              <span class="map-inset-label">제주도</span>
+        <div class="relative overflow-hidden p-3">
+          <div
+            id="mapViewport"
+            class="relative mx-auto w-full max-w-md overflow-hidden rounded-xl bg-slate-50"
+            style="aspect-ratio: 1 / 1.15"
+          >
+            <div id="mapLoading" class="absolute inset-0 grid place-items-center text-sm text-slate-500">
+              지도를 불러오는 중…
             </div>
-            <div id="map-inset-ulleungdo" class="map-inset map-inset-ulleungdo">
-              <span class="map-inset-label">울릉도</span>
-            </div>
+            <div id="mapRoot" class="absolute inset-0"></div>
+          </div>
+          <div class="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            팁: 파일을 더블클릭으로 열면 로딩이 막힐 수 있어요. 이 경우 로컬 서버로 실행하세요 (README 참고).
           </div>
         </div>
       </section>
 
-      <aside class="list-panel">
-        <div class="list-header">
-          <div class="list-header-title">
-            <div>
-              <div style="font-size: 14px; font-weight: 600;">선택된 지역의 맛집 메모</div>
-              <div id="list-region-label" style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                전체 대한민국 기준
-              </div>
-            </div>
-            <div>
-              <span class="pill-small accent" id="memo-count-pill">0건</span>
-            </div>
+      <section class="mt-4">
+        <div class="mb-2 flex items-end justify-between">
+          <div>
+            <div class="text-sm font-bold text-slate-900">기록</div>
+            <div class="text-xs text-slate-500" id="feedTitle">구/군을 선택하면 해당 기록이 표시돼요</div>
           </div>
-          <div class="map-hint">
-            <span class="dot"></span>
-            <span>지도를 클릭해 지역을 내려가고, <strong>동을 클릭</strong>하면 맛집 메모를 추가할 수 있습니다.</span>
-          </div>
+          <button
+            id="clearDistrictBtn"
+            type="button"
+            class="hidden h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 active:bg-slate-100"
+          >
+            선택 해제
+          </button>
         </div>
-        <div class="list-body" id="memo-list"></div>
-      </aside>
-    </div>
 
-    <div class="modal-backdrop" id="memo-modal-backdrop">
-      <div class="modal" role="dialog" aria-modal="true">
-        <div class="modal-header">
-          <div class="modal-title-wrap">
-            <h2 class="modal-title">동 단위 맛집 메모 추가</h2>
-            <p class="modal-subtitle" id="modal-region-label">선택된 동</p>
+        <div id="feed" class="grid gap-3"></div>
+      </section>
+
+      <footer class="mt-10 text-center text-xs text-slate-400">
+        지도 데이터: Wikimedia Commons (CC BY-SA 3.0 / 기타 표기). 저장: localStorage.
+      </footer>
+    </main>
+
+    <!-- Bottom sheet -->
+    <div id="sheetBackdrop" class="fixed inset-0 z-40 hidden bg-black/40"></div>
+    <section
+      id="sheet"
+      class="safe-bottom fixed inset-x-0 bottom-0 z-50 hidden max-w-md rounded-t-3xl border border-slate-200 bg-white shadow-2xl"
+      style="left: 50%; transform: translateX(-50%); width: min(100%, 28rem);"
+      aria-modal="true"
+      role="dialog"
+    >
+      <div class="px-4 pb-4 pt-3">
+        <div class="mx-auto mb-2 h-1.5 w-10 rounded-full bg-slate-200"></div>
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="truncate text-sm font-bold text-slate-900" id="sheetHeading">구 선택</div>
+            <div class="truncate text-xs text-slate-500" id="sheetSubheading">기록을 남겨보세요</div>
           </div>
-          <button class="modal-close-btn" type="button" id="modal-close-btn" aria-label="닫기">
+          <button
+            id="sheetCloseBtn"
+            type="button"
+            class="h-10 w-10 rounded-xl border border-slate-200 bg-white text-slate-700 active:bg-slate-100"
+            aria-label="닫기"
+          >
             ✕
           </button>
         </div>
-        <form id="memo-form">
-          <div class="modal-body">
-            <div class="field">
-              <label class="field-label">
-                방문 여부
-                <span class="hint">이미 방문한 곳인지 체크해 주세요.</span>
-              </label>
-              <label class="checkbox-row">
-                <input type="checkbox" id="visited-input" />
-                <span>방문 완료</span>
-              </label>
-            </div>
 
-            <div class="field">
-              <label class="field-label" for="name-input">
-                맛집 이름
-                <span class="hint">예: OO마라탕, OO 떡볶이</span>
-              </label>
-              <input type="text" id="name-input" placeholder="맛집 상호명을 입력하세요." required />
-            </div>
+        <form id="entryForm" class="mt-3 grid gap-3">
+          <input type="hidden" id="provinceId" />
+          <input type="hidden" id="provinceName" />
+          <input type="hidden" id="districtId" />
+          <input type="hidden" id="districtName" />
 
-            <div class="field">
-              <label class="field-label" for="memo-input">
-                메모 내용
-                <span class="hint">메뉴, 가격대, 재방문의사 등 자유롭게 작성하세요.</span>
-              </label>
-              <textarea id="memo-input" placeholder="메모를 입력하세요." required></textarea>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-ghost" id="modal-cancel-btn">
-              취소
-            </button>
-            <button type="submit" class="btn btn-primary">
-              저장
-            </button>
-          </div>
+          <label class="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+            <span class="text-sm font-semibold text-slate-800">방문 완료</span>
+            <input id="visited" type="checkbox" class="h-6 w-6 accent-slate-900" />
+          </label>
+
+          <label class="grid gap-1">
+            <span class="text-sm font-semibold text-slate-800">맛집 이름</span>
+            <input
+              id="placeName"
+              type="text"
+              inputmode="text"
+              placeholder="예: OO칼국수"
+              class="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-base outline-none focus:border-slate-400"
+              required
+            />
+          </label>
+
+          <label class="grid gap-1">
+            <span class="text-sm font-semibold text-slate-800">상세 내용</span>
+            <textarea
+              id="notes"
+              rows="4"
+              placeholder="메뉴/가격/대기/팁 등을 적어두면 좋아요"
+              class="min-h-[96px] resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base outline-none focus:border-slate-400"
+            ></textarea>
+          </label>
+
+          <button
+            id="saveBtn"
+            type="submit"
+            class="h-12 rounded-2xl bg-slate-900 text-base font-bold text-white active:bg-slate-800"
+          >
+            저장하기
+          </button>
         </form>
       </div>
+    </section>
+
+    <!-- Toast -->
+    <div
+      id="toast"
+      class="pointer-events-none fixed left-1/2 top-16 z-[60] hidden -translate-x-1/2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-lg"
+    >
+      저장했어요
     </div>
-  </div>
 
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
-  <script>
-    const GEOJSON_PATHS = {
-      sido: "data/sido.geojson",
-      sigungu: "data/sigungu.geojson",
-      dong: "data/dong.geojson",
-    };
-
-    const LEVELS = {
-      COUNTRY: "country",
-      SIDO: "sido",
-      SIGUNGU: "sigungu",
-      DONG: "dong",
-    };
-
-    const state = {
-      level: LEVELS.COUNTRY,
-      selectedSido: null,
-      selectedSigungu: null,
-      selectedDong: null,
-      geoLayers: {
-        sido: null,
-        sigungu: null,
-        dong: null,
-      },
-      allGeoData: {
-        sido: null,
-        sigungu: null,
-        dong: null,
-      },
-      insetMaps: { jeju: null, ulleungdo: null },
-      insetLayers: { jeju: null, ulleungdo: null },
-    };
-
-    function loadMemosFromStorage() {
-      try {
-        const raw = localStorage.getItem("k_food_memos");
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return [];
-        return parsed;
-      } catch (e) {
-        console.warn("Failed to parse memos from localStorage", e);
-        return [];
-      }
-    }
-
-    function saveMemosToStorage(memos) {
-      try {
-        localStorage.setItem("k_food_memos", JSON.stringify(memos));
-      } catch (e) {
-        console.warn("Failed to save memos to localStorage", e);
-      }
-    }
-
-    function addMemo(entry) {
-      const current = loadMemosFromStorage();
-      current.push(entry);
-      saveMemosToStorage(current);
-    }
-
-    function filterMemosByRegion(level, regionCodes) {
-      const memos = loadMemosFromStorage();
-      return memos.filter((m) => {
-        if (level === LEVELS.COUNTRY) return true;
-        if (level === LEVELS.SIDO) return m.sidoCode === regionCodes.sidoCode;
-        if (level === LEVELS.SIGUNGU) return m.sigunguCode === regionCodes.sigunguCode;
-        if (level === LEVELS.DONG) return m.dongCode === regionCodes.dongCode;
-        return true;
-      });
-    }
-
-    function formatDate(iso) {
-      const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return "-";
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      const hh = String(d.getHours()).padStart(2, "0");
-      const mm = String(d.getMinutes()).padStart(2, "0");
-      return `${y}-${m}-${day} ${hh}:${mm}`;
-    }
-
-    function buildRegionLabel() {
-      if (!state.selectedSido && !state.selectedSigungu && !state.selectedDong) {
-        return "전체 대한민국 기준";
-      }
-      const parts = [];
-      if (state.selectedSido) parts.push(state.selectedSido.name);
-      if (state.selectedSigungu) parts.push(state.selectedSigungu.name);
-      if (state.selectedDong) parts.push(state.selectedDong.name);
-      return parts.join(" ") + " 기준";
-    }
-
-    function renderMemoList() {
-      const listEl = document.getElementById("memo-list");
-      const labelEl = document.getElementById("list-region-label");
-      const countPill = document.getElementById("memo-count-pill");
-
-      let levelForFilter = state.level;
-      const regionCodes = {
-        sidoCode: state.selectedSido?.code || null,
-        sigunguCode: state.selectedSigungu?.code || null,
-        dongCode: state.selectedDong?.code || null,
-      };
-
-      if (state.level === LEVELS.COUNTRY) {
-        levelForFilter = LEVELS.COUNTRY;
-      } else if (state.level === LEVELS.SIDO) {
-        levelForFilter = LEVELS.SIDO;
-      } else if (state.level === LEVELS.SIGUNGU) {
-        levelForFilter = LEVELS.SIGUNGU;
-      } else if (state.level === LEVELS.DONG) {
-        levelForFilter = LEVELS.DONG;
-      }
-
-      const memos = filterMemosByRegion(levelForFilter, regionCodes).sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-      );
-
-      labelEl.textContent = buildRegionLabel();
-      countPill.textContent = memos.length + "건";
-
-      if (!memos.length) {
-        listEl.innerHTML =
-          '<div class="empty-state">아직 저장된 메모가 없습니다.<br />지도의 동을 클릭해 첫 번째 맛집 메모를 남겨보세요.</div>';
-        return;
-      }
-
-      listEl.innerHTML = "";
-      memos.forEach((m) => {
-        const item = document.createElement("div");
-        item.className = "memo-item";
-        item.innerHTML = `
-          <div class="memo-row-top">
-            <div class="memo-title">${m.placeName || "(이름 없음)"}</div>
-            <div class="memo-visited ${m.visited ? "" : "no"}">
-              ${m.visited ? "방문 완료" : "미방문"}
-            </div>
-          </div>
-          <div class="memo-meta">
-            <span>${formatDate(m.createdAt)}</span>
-            <span>${m.sidoName || ""} ${m.sigunguName || ""} ${m.dongName || ""}</span>
-          </div>
-          <div class="memo-content-preview">${m.memo || ""}</div>
-        `;
-        listEl.appendChild(item);
-      });
-    }
-
-    function updateLevelPill() {
-      const pillText = document.getElementById("level-pill-text");
-      if (state.level === LEVELS.COUNTRY) {
-        pillText.textContent = "현재 단계: 전국 전도 (시/도 선택)";
-      } else if (state.level === LEVELS.SIDO) {
-        pillText.textContent = `현재 단계: 시/도 → 구/군 (선택: ${state.selectedSido?.name || ""})`;
-      } else if (state.level === LEVELS.SIGUNGU) {
-        pillText.textContent = `현재 단계: 구/군 → 동 (선택: ${state.selectedSigungu?.name || ""})`;
-      } else if (state.level === LEVELS.DONG) {
-        pillText.textContent = `현재 단계: 동 선택 (선택: ${state.selectedDong?.name || ""})`;
-      }
-    }
-
-    function renderBreadcrumbs() {
-      const container = document.getElementById("breadcrumbs");
-      container.innerHTML = "";
-
-      const items = [];
-      items.push({ label: "대한민국", level: LEVELS.COUNTRY, clickable: true });
-      if (state.selectedSido) {
-        items.push({
-          label: state.selectedSido.name,
-          level: LEVELS.SIDO,
-          clickable: true,
-        });
-      }
-      if (state.selectedSigungu) {
-        items.push({
-          label: state.selectedSigungu.name,
-          level: LEVELS.SIGUNGU,
-          clickable: true,
-        });
-      }
-      if (state.selectedDong) {
-        items.push({
-          label: state.selectedDong.name,
-          level: LEVELS.DONG,
-          clickable: false,
-        });
-      }
-
-      items.forEach((item, index) => {
-        if (index > 0) {
-          const sep = document.createElement("span");
-          sep.textContent = "›";
-          sep.className = "breadcrumb-sep";
-          container.appendChild(sep);
-        }
-        const wrapper = document.createElement("div");
-        wrapper.className = "breadcrumb-item";
-        const span = document.createElement("span");
-        span.textContent = item.label;
-        if (item.clickable) {
-          span.className = "breadcrumb-link";
-          span.dataset.level = item.level;
-          span.addEventListener("click", () => handleBreadcrumbClick(item.level));
-        }
-        wrapper.appendChild(span);
-        container.appendChild(wrapper);
-      });
-    }
-
-    function handleBreadcrumbClick(targetLevel) {
-      if (targetLevel === LEVELS.COUNTRY) {
-        state.level = LEVELS.COUNTRY;
-        state.selectedSido = null;
-        state.selectedSigungu = null;
-        state.selectedDong = null;
-        showSidoLayer();
-      } else if (targetLevel === LEVELS.SIDO && state.selectedSido) {
-        state.level = LEVELS.SIDO;
-        state.selectedSigungu = null;
-        state.selectedDong = null;
-        showSigunguLayerForSido(state.selectedSido);
-      } else if (targetLevel === LEVELS.SIGUNGU && state.selectedSigungu) {
-        state.level = LEVELS.SIGUNGU;
-        state.selectedDong = null;
-        showDongLayerForSigungu(state.selectedSigungu);
-      }
-      updateLevelPill();
-      renderBreadcrumbs();
-      renderMemoList();
-    }
-
-    function clearAllLayers(map) {
-      Object.keys(state.geoLayers).forEach((key) => {
-        const layer = state.geoLayers[key];
-        if (layer) {
-          map.removeLayer(layer);
-          state.geoLayers[key] = null;
-        }
-      });
-    }
-
-    function styleForLevel(level) {
-      if (level === LEVELS.SIDO) {
-        return {
-          color: "#1d4ed8",
-          weight: 2,
-          fillColor: "#bfdbfe",
-          fillOpacity: 0.65,
-        };
-      }
-      if (level === LEVELS.SIGUNGU) {
-        return {
-          color: "#059669",
-          weight: 1,
-          fillColor: "#bbf7d0",
-          fillOpacity: 0.7,
-        };
-      }
-      if (level === LEVELS.DONG) {
-        return {
-          color: "#eab308",
-          weight: 1,
-          fillColor: "#fef3c7",
-          fillOpacity: 0.8,
-        };
-      }
-      return {
-        color: "#94a3b8",
-        weight: 1,
-        fillColor: "#e2e8f0",
-        fillOpacity: 0.6,
-      };
-    }
-
-    function highlightFeature(e) {
-      const layer = e.target;
-      layer.setStyle({
-        weight: 2,
-        color: "#0f172a",
-        fillOpacity: 0.9,
-      });
-      if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-        layer.bringToFront();
-      }
-    }
-
-    function resetHighlight(e, baseStyle) {
-      const layer = e.target;
-      layer.setStyle(baseStyle);
-    }
-
-    // 시/도, 구/군, 동 모두 Leaflet 기본 click 이벤트에만 맡겨
-    // 모바일 터치에서도 자동으로 click 이 발생하도록 단순화한다.
-
-    function attachSidoHandlers(feature, layer, map) {
-      const baseStyle = styleForLevel(LEVELS.SIDO);
-      layer.on({
-        mouseover: (e) => highlightFeature(e),
-        mouseout: (e) => resetHighlight(e, baseStyle),
-        click: () => {
-          const props = feature.properties || {};
-          state.selectedSido = {
-            code: props.code || props.SIDO_CD || props.sido_cd || null,
-            name: props.name || props.SIDO_NM || props.sido_nm || "시/도",
-          };
-          state.selectedSigungu = null;
-          state.selectedDong = null;
-          state.level = LEVELS.SIDO;
-          updateLevelPill();
-          renderBreadcrumbs();
-          showSigunguLayerForSido(state.selectedSido, layer, map);
-          renderMemoList();
-        },
-      });
-      const props = feature.properties || {};
-      const name = props.name || props.SIDO_NM || props.sido_nm || "";
-      if (name) {
-        layer.bindTooltip(name, {
-          permanent: true,
-          direction: "center",
-          className: "sido-label",
-          offset: [0, 0],
-        });
-      }
-    }
-
-    function attachSigunguHandlers(feature, layer, map) {
-      const baseStyle = styleForLevel(LEVELS.SIGUNGU);
-      layer.on({
-        mouseover: (e) => highlightFeature(e),
-        mouseout: (e) => resetHighlight(e, baseStyle),
-        click: () => {
-          const props = feature.properties || {};
-          state.selectedSigungu = {
-            code: props.code || props.SIG_CD || props.sig_cd || null,
-            name: props.name || props.SIG_KOR_NM || props.sig_kor_nm || "구/군",
-            sidoCode:
-              props.sidoCode || props.SIDO_CD || props.sido_cd || state.selectedSido?.code || null,
-          };
-          state.level = LEVELS.SIGUNGU;
-          state.selectedDong = null;
-          updateLevelPill();
-          renderBreadcrumbs();
-          showDongLayerForSigungu(state.selectedSigungu, layer, map);
-          renderMemoList();
-        },
-      });
-      const props = feature.properties || {};
-      const name = props.name || props.SIG_KOR_NM || props.sig_kor_nm || "";
-      if (name) {
-        layer.bindTooltip(name, { direction: "center", className: "sigungu-tooltip" });
-      }
-    }
-
-    function attachDongHandlers(feature, layer) {
-      const baseStyle = styleForLevel(LEVELS.DONG);
-      layer.on({
-        mouseover: (e) => highlightFeature(e),
-        mouseout: (e) => resetHighlight(e, baseStyle),
-        click: () => {
-          const props = feature.properties || {};
-          state.selectedDong = {
-            code: props.code || props.EMD_CD || props.emd_cd || null,
-            name: props.name || props.EMD_KOR_NM || props.emd_kor_nm || "동",
-            sigunguCode:
-              props.sigunguCode ||
-              props.SIG_CD ||
-              props.sig_cd ||
-              state.selectedSigungu?.code ||
-              null,
-            sidoCode:
-              props.sidoCode ||
-              props.SIDO_CD ||
-              props.sido_cd ||
-              state.selectedSido?.code ||
-              null,
-          };
-          state.level = LEVELS.DONG;
-          updateLevelPill();
-          renderBreadcrumbs();
-          openMemoModal();
-          renderMemoList();
-        },
-      });
-      const props = feature.properties || {};
-      const name = props.name || props.EMD_KOR_NM || props.emd_kor_nm || "";
-      if (name) {
-        layer.bindTooltip(name, { direction: "center", className: "dong-tooltip" });
-      }
-    }
-
-    async function loadGeoJSONOnce(key) {
-      if (state.allGeoData[key]) return state.allGeoData[key];
-      const url = GEOJSON_PATHS[key];
-      try {
-        const res = await fetch(url);
-        if (!res.ok) {
-          console.warn("Failed to load GeoJSON:", url, res.status);
-          return null;
-        }
-        const json = await res.json();
-        state.allGeoData[key] = json;
-        return json;
-      } catch (e) {
-        console.warn("Error loading GeoJSON:", url, e);
-        return null;
-      }
-    }
-
-    async function showSidoLayer(map = window._leafletMap) {
-      if (!map) return;
-      clearAllLayers(map);
-      const data = await loadGeoJSONOnce("sido");
-      if (!data) {
-        console.warn("sido GeoJSON data not available");
-        return;
-      }
-      const baseStyle = styleForLevel(LEVELS.SIDO);
-      const layer = L.geoJSON(data, {
-        style: baseStyle,
-        onEachFeature: (feature, lyr) => attachSidoHandlers(feature, lyr, map),
-      }).addTo(map);
-      state.geoLayers.sido = layer;
-
-      /* 전국이 한 화면에 나오도록 축소 (전라남도 등 포함), 시/도만 보이게 */
-      try {
-        map.flyToBounds(layer.getBounds(), {
-          padding: [40, 40],
-          maxZoom: 6,
-          duration: 0.6,
-        });
-      } catch (e) {}
-
-      /* 제주도·울릉도 인셋 표시 */
-      var insetsEl = document.getElementById("map-insets");
-      if (insetsEl) insetsEl.classList.remove("map-insets-hidden");
-      if (state.insetMaps.jeju && state.insetMaps.ulleungdo) {
-        if (state.insetLayers.jeju) {
-          state.insetMaps.jeju.removeLayer(state.insetLayers.jeju);
-          state.insetLayers.jeju = null;
-        }
-        if (state.insetLayers.ulleungdo) {
-          state.insetMaps.ulleungdo.removeLayer(state.insetLayers.ulleungdo);
-          state.insetLayers.ulleungdo = null;
-        }
-        state.insetLayers.jeju = L.geoJSON(data, { style: baseStyle }).addTo(state.insetMaps.jeju);
-        state.insetLayers.ulleungdo = L.geoJSON(data, { style: baseStyle }).addTo(state.insetMaps.ulleungdo);
-        state.insetMaps.jeju.setView([33.4, 126.5], 9);
-        state.insetMaps.ulleungdo.setView([37.5, 130.85], 11);
-      }
-    }
-
-    async function showSigunguLayerForSido(sido, clickedLayer, map = window._leafletMap) {
-      var insetsEl = document.getElementById("map-insets");
-      if (insetsEl) insetsEl.classList.add("map-insets-hidden");
-      if (!map) return;
-      clearAllLayers(map);
-      const data = await loadGeoJSONOnce("sigungu");
-      if (!data) {
-        console.warn("sigungu GeoJSON data not available");
-        return;
-      }
-      const sidoCode = sido.code;
-      const filtered = {
-        type: "FeatureCollection",
-        features: (data.features || []).filter((f) => {
-          const p = f.properties || {};
-          const code =
-            p.sidoCode || p.SIDO_CD || p.sido_cd || (p.SIG_CD ? String(p.SIG_CD).slice(0, 2) : null);
-          return !sidoCode || code === String(sidoCode);
-        }),
-      };
-      const baseStyle = styleForLevel(LEVELS.SIGUNGU);
-      const layer = L.geoJSON(filtered, {
-        style: baseStyle,
-        onEachFeature: (feature, lyr) => attachSigunguHandlers(feature, lyr, map),
-      }).addTo(map);
-      state.geoLayers.sigungu = layer;
-      try {
-        if (clickedLayer) {
-          map.flyToBounds(clickedLayer.getBounds(), { padding: [20, 20], duration: 0.7 });
-        } else {
-          map.flyToBounds(layer.getBounds(), { padding: [20, 20], duration: 0.7 });
-        }
-      } catch (e) {}
-    }
-
-    async function showDongLayerForSigungu(sigungu, clickedLayer, map = window._leafletMap) {
-      var insetsEl = document.getElementById("map-insets");
-      if (insetsEl) insetsEl.classList.add("map-insets-hidden");
-      if (!map) return;
-      clearAllLayers(map);
-      const data = await loadGeoJSONOnce("dong");
-      if (!data) {
-        console.warn("dong GeoJSON data not available");
-        return;
-      }
-      const sigCode = sigungu.code;
-      const filtered = {
-        type: "FeatureCollection",
-        features: (data.features || []).filter((f) => {
-          const p = f.properties || {};
-          const code =
-            p.sigunguCode ||
-            p.SIG_CD ||
-            p.sig_cd ||
-            (p.EMD_CD ? String(p.EMD_CD).slice(0, 5) : null);
-          return !sigCode || code === String(sigCode);
-        }),
-      };
-      const baseStyle = styleForLevel(LEVELS.DONG);
-      const layer = L.geoJSON(filtered, {
-        style: baseStyle,
-        onEachFeature: (feature, lyr) => attachDongHandlers(feature, lyr, map),
-      }).addTo(map);
-      state.geoLayers.dong = layer;
-      try {
-        if (clickedLayer) {
-          map.flyToBounds(clickedLayer.getBounds(), { padding: [20, 20], duration: 0.8 });
-        } else {
-          map.flyToBounds(layer.getBounds(), { padding: [20, 20], duration: 0.8 });
-        }
-      } catch (e) {}
-    }
-
-    function openMemoModal() {
-      const backdrop = document.getElementById("memo-modal-backdrop");
-      const regionLabel = document.getElementById("modal-region-label");
-      const visitedInput = document.getElementById("visited-input");
-      const nameInput = document.getElementById("name-input");
-      const memoInput = document.getElementById("memo-input");
-
-      const parts = [];
-      if (state.selectedSido) parts.push(state.selectedSido.name);
-      if (state.selectedSigungu) parts.push(state.selectedSigungu.name);
-      if (state.selectedDong) parts.push(state.selectedDong.name);
-      regionLabel.textContent = parts.join(" ");
-
-      visitedInput.checked = false;
-      nameInput.value = "";
-      memoInput.value = "";
-
-      backdrop.classList.add("open");
-    }
-
-    function closeMemoModal() {
-      const backdrop = document.getElementById("memo-modal-backdrop");
-      backdrop.classList.remove("open");
-    }
-
-    function setupModalEvents() {
-      const backdrop = document.getElementById("memo-modal-backdrop");
-      const closeBtn = document.getElementById("modal-close-btn");
-      const cancelBtn = document.getElementById("modal-cancel-btn");
-      const form = document.getElementById("memo-form");
-
-      closeBtn.addEventListener("click", closeMemoModal);
-      cancelBtn.addEventListener("click", closeMemoModal);
-      backdrop.addEventListener("click", (e) => {
-        if (e.target === backdrop) {
-          closeMemoModal();
-        }
-      });
-
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        if (!state.selectedDong) {
-          alert("동이 선택되지 않았습니다.");
-          return;
-        }
-        const visited = document.getElementById("visited-input").checked;
-        const placeName = document.getElementById("name-input").value.trim();
-        const memo = document.getElementById("memo-input").value.trim();
-        if (!placeName || !memo) {
-          alert("맛집 이름과 메모 내용을 모두 입력해 주세요.");
-          return;
-        }
-        const now = new Date().toISOString();
-        const entry = {
-          id: "m_" + Date.now() + "_" + Math.random().toString(16).slice(2),
-          visited,
-          placeName,
-          memo,
-          createdAt: now,
-          dongCode: state.selectedDong.code,
-          dongName: state.selectedDong.name,
-          sigunguCode: state.selectedDong.sigunguCode || state.selectedSigungu?.code || null,
-          sigunguName: state.selectedSigungu?.name || "",
-          sidoCode: state.selectedDong.sidoCode || state.selectedSido?.code || null,
-          sidoName: state.selectedSido?.name || "",
-        };
-        addMemo(entry);
-        closeMemoModal();
-        renderMemoList();
-      });
-
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-          const isOpen = backdrop.classList.contains("open");
-          if (isOpen) closeMemoModal();
-        }
-      });
-    }
-
-    function initMap() {
-      const map = L.map("map", {
-        zoomSnap: 0.5,
-        zoomDelta: 0.5,
-        worldCopyJump: true,
-        zoomControl: false,
-        scrollWheelZoom: false,
-        doubleClickZoom: false,
-        touchZoom: false,
-        boxZoom: false,
-        keyboard: false,
-        dragging: false,
-      });
-      window._leafletMap = map;
-
-      map.setView([36.5, 127.8], 7);
-
-      /* 깔끔한 배경: 도로·지명 없이 시/도 경계만 보이도록 */
-      const tileUrl = "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png";
-      const tileOpts = {
-        maxZoom: 18,
-        minZoom: 5,
-        attribution: "© OpenStreetMap, © Carto",
-      };
-      L.tileLayer(tileUrl, tileOpts).addTo(map);
-
-      /* 제주도·울릉도 인셋용 작은 지도 (표시 전용) */
-      const insetOpts = {
-        zoomControl: false,
-        scrollWheelZoom: false,
-        doubleClickZoom: false,
-        touchZoom: false,
-        boxZoom: false,
-        keyboard: false,
-        dragging: false,
-        attributionControl: false,
-      };
-      state.insetMaps.jeju = L.map("map-inset-jeju", insetOpts).setView([33.4, 126.5], 9);
-      state.insetMaps.ulleungdo = L.map("map-inset-ulleungdo", insetOpts).setView([37.5, 130.85], 11);
-      L.tileLayer(tileUrl, { maxZoom: 18, minZoom: 5 }).addTo(state.insetMaps.jeju);
-      L.tileLayer(tileUrl, { maxZoom: 18, minZoom: 5 }).addTo(state.insetMaps.ulleungdo);
-
-      setTimeout(() => {
-        showSidoLayer(map);
-      }, 150);
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      initMap();
-      setupModalEvents();
-      updateLevelPill();
-      renderBreadcrumbs();
-      renderMemoList();
-
-      console.log(
-        "GeoJSON 파일은 /data 폴더의 sido/sigungu/dong.geojson 을 사용합니다. 실제 서비스에서는 행정구역 전체 데이터를 해당 위치에 배치해 주세요."
-      );
-    });
-  </script>
-</body>
+    <script defer src="./app.js"></script>
+  </body>
 </html>
-
