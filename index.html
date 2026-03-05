@@ -1053,42 +1053,28 @@
       layer.setStyle(baseStyle);
     }
 
-    function runOnceOnTap(layer, handler) {
-      function runFromTouch(e) {
-        if (e.originalEvent) {
-          e.originalEvent.preventDefault();
-          e.originalEvent.stopPropagation();
-        }
-        handler(e);
-      }
-      function runFromClick(e) {
-        var o = e.originalEvent;
-        if (o && (o.pointerType === "touch" || (o.sourceCapabilities && o.sourceCapabilities.firesTouchEvents))) return;
-        handler(e);
-      }
-      layer.on("touchend", runFromTouch);
-      layer.on("click", runFromClick);
-    }
+    // 시/도, 구/군, 동 모두 Leaflet 기본 click 이벤트에만 맡겨
+    // 모바일 터치에서도 자동으로 click 이 발생하도록 단순화한다.
 
     function attachSidoHandlers(feature, layer, map) {
       const baseStyle = styleForLevel(LEVELS.SIDO);
       layer.on({
         mouseover: (e) => highlightFeature(e),
         mouseout: (e) => resetHighlight(e, baseStyle),
-      });
-      runOnceOnTap(layer, () => {
-        const props = feature.properties || {};
-        state.selectedSido = {
-          code: props.code || props.SIDO_CD || props.sido_cd || null,
-          name: props.name || props.SIDO_NM || props.sido_nm || "시/도",
-        };
-        state.selectedSigungu = null;
-        state.selectedDong = null;
-        state.level = LEVELS.SIDO;
-        updateLevelPill();
-        renderBreadcrumbs();
-        showSigunguLayerForSido(state.selectedSido, layer, map);
-        renderMemoList();
+        click: () => {
+          const props = feature.properties || {};
+          state.selectedSido = {
+            code: props.code || props.SIDO_CD || props.sido_cd || null,
+            name: props.name || props.SIDO_NM || props.sido_nm || "시/도",
+          };
+          state.selectedSigungu = null;
+          state.selectedDong = null;
+          state.level = LEVELS.SIDO;
+          updateLevelPill();
+          renderBreadcrumbs();
+          showSigunguLayerForSido(state.selectedSido, layer, map);
+          renderMemoList();
+        },
       });
       const props = feature.properties || {};
       const name = props.name || props.SIDO_NM || props.sido_nm || "";
@@ -1107,21 +1093,21 @@
       layer.on({
         mouseover: (e) => highlightFeature(e),
         mouseout: (e) => resetHighlight(e, baseStyle),
-      });
-      runOnceOnTap(layer, () => {
-        const props = feature.properties || {};
-        state.selectedSigungu = {
-          code: props.code || props.SIG_CD || props.sig_cd || null,
-          name: props.name || props.SIG_KOR_NM || props.sig_kor_nm || "구/군",
-          sidoCode:
-            props.sidoCode || props.SIDO_CD || props.sido_cd || state.selectedSido?.code || null,
-        };
-        state.level = LEVELS.SIGUNGU;
-        state.selectedDong = null;
-        updateLevelPill();
-        renderBreadcrumbs();
-        showDongLayerForSigungu(state.selectedSigungu, layer, map);
-        renderMemoList();
+        click: () => {
+          const props = feature.properties || {};
+          state.selectedSigungu = {
+            code: props.code || props.SIG_CD || props.sig_cd || null,
+            name: props.name || props.SIG_KOR_NM || props.sig_kor_nm || "구/군",
+            sidoCode:
+              props.sidoCode || props.SIDO_CD || props.sido_cd || state.selectedSido?.code || null,
+          };
+          state.level = LEVELS.SIGUNGU;
+          state.selectedDong = null;
+          updateLevelPill();
+          renderBreadcrumbs();
+          showDongLayerForSigungu(state.selectedSigungu, layer, map);
+          renderMemoList();
+        },
       });
       const props = feature.properties || {};
       const name = props.name || props.SIG_KOR_NM || props.sig_kor_nm || "";
@@ -1135,30 +1121,30 @@
       layer.on({
         mouseover: (e) => highlightFeature(e),
         mouseout: (e) => resetHighlight(e, baseStyle),
-      });
-      runOnceOnTap(layer, () => {
-        const props = feature.properties || {};
-        state.selectedDong = {
-          code: props.code || props.EMD_CD || props.emd_cd || null,
-          name: props.name || props.EMD_KOR_NM || props.emd_kor_nm || "동",
-          sigunguCode:
-            props.sigunguCode ||
-            props.SIG_CD ||
-            props.sig_cd ||
-            state.selectedSigungu?.code ||
-            null,
-          sidoCode:
-            props.sidoCode ||
-            props.SIDO_CD ||
-            props.sido_cd ||
-            state.selectedSido?.code ||
-            null,
-        };
-        state.level = LEVELS.DONG;
-        updateLevelPill();
-        renderBreadcrumbs();
-        openMemoModal();
-        renderMemoList();
+        click: () => {
+          const props = feature.properties || {};
+          state.selectedDong = {
+            code: props.code || props.EMD_CD || props.emd_cd || null,
+            name: props.name || props.EMD_KOR_NM || props.emd_kor_nm || "동",
+            sigunguCode:
+              props.sigunguCode ||
+              props.SIG_CD ||
+              props.sig_cd ||
+              state.selectedSigungu?.code ||
+              null,
+            sidoCode:
+              props.sidoCode ||
+              props.SIDO_CD ||
+              props.sido_cd ||
+              state.selectedSido?.code ||
+              null,
+          };
+          state.level = LEVELS.DONG;
+          updateLevelPill();
+          renderBreadcrumbs();
+          openMemoModal();
+          renderMemoList();
+        },
       });
       const props = feature.properties || {};
       const name = props.name || props.EMD_KOR_NM || props.emd_kor_nm || "";
