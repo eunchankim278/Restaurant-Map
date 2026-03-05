@@ -105,6 +105,7 @@
       background: var(--panel-bg);
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
     .map-toolbar {
@@ -152,6 +153,56 @@
     }
     #map .leaflet-interactive {
       cursor: pointer;
+    }
+
+    .map-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+    }
+
+    .map-insets {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 600;
+    }
+    .map-insets.map-insets-hidden {
+      display: none;
+    }
+
+    .map-inset {
+      position: absolute;
+      bottom: 12px;
+      width: 100px;
+      height: 76px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+      border: 1px solid var(--border);
+      background: var(--panel-bg);
+    }
+    .map-inset-jeju {
+      left: 12px;
+    }
+    .map-inset-ulleungdo {
+      right: 12px;
+    }
+    .map-inset-label {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 3px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.95);
+      text-align: center;
+      z-index: 1000;
+      border-top: 1px solid var(--border);
     }
 
     .list-panel {
@@ -600,7 +651,17 @@
             </div>
           </div>
         </div>
-        <div id="map"></div>
+        <div class="map-wrap">
+          <div id="map"></div>
+          <div id="map-insets" class="map-insets">
+            <div id="map-inset-jeju" class="map-inset map-inset-jeju">
+              <span class="map-inset-label">제주도</span>
+            </div>
+            <div id="map-inset-ulleungdo" class="map-inset map-inset-ulleungdo">
+              <span class="map-inset-label">울릉도</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       <aside class="list-panel">
@@ -712,6 +773,8 @@
         sigungu: null,
         dong: null,
       },
+      insetMaps: { jeju: null, ulleungdo: null },
+      insetLayers: { jeju: null, ulleungdo: null },
     };
 
     function loadMemosFromStorage() {
@@ -1110,12 +1173,38 @@
         onEachFeature: (feature, lyr) => attachSidoHandlers(feature, lyr, map),
       }).addTo(map);
       state.geoLayers.sido = layer;
+
+      /* 전국이 한 화면에 나오도록 축소, 시/도만 보이게 */
       try {
-        map.flyToBounds(layer.getBounds(), { padding: [20, 20], duration: 0.6 });
+        map.flyToBounds(layer.getBounds(), {
+          padding: [28, 28],
+          maxZoom: 7,
+          duration: 0.6,
+        });
       } catch (e) {}
+
+      /* 제주도·울릉도 인셋 표시 */
+      var insetsEl = document.getElementById("map-insets");
+      if (insetsEl) insetsEl.classList.remove("map-insets-hidden");
+      if (state.insetMaps.jeju && state.insetMaps.ulleungdo) {
+        if (state.insetLayers.jeju) {
+          state.insetMaps.jeju.removeLayer(state.insetLayers.jeju);
+          state.insetLayers.jeju = null;
+        }
+        if (state.insetLayers.ulleungdo) {
+          state.insetMaps.ulleungdo.removeLayer(state.insetLayers.ulleungdo);
+          state.insetLayers.ulleungdo = null;
+        }
+        state.insetLayers.jeju = L.geoJSON(data, { style: baseStyle }).addTo(state.insetMaps.jeju);
+        state.insetLayers.ulleungdo = L.geoJSON(data, { style: baseStyle }).addTo(state.insetMaps.ulleungdo);
+        state.insetMaps.jeju.setView([33.4, 126.5], 9);
+        state.insetMaps.ulleungdo.setView([37.5, 130.85], 11);
+      }
     }
 
     async function showSigunguLayerForSido(sido, clickedLayer, map = window._leafletMap) {
+      var insetsEl = document.getElementById("map-insets");
+      if (insetsEl) insetsEl.classList.add("map-insets-hidden");
       if (!map) return;
       clearAllLayers(map);
       const data = await loadGeoJSONOnce("sigungu");
@@ -1149,6 +1238,8 @@
     }
 
     async function showDongLayerForSigungu(sigungu, clickedLayer, map = window._leafletMap) {
+      var insetsEl = document.getElementById("map-insets");
+      if (insetsEl) insetsEl.classList.add("map-insets-hidden");
       if (!map) return;
       clearAllLayers(map);
       const data = await loadGeoJSONOnce("dong");
@@ -1280,16 +1371,30 @@
 
       map.setView([36.5, 127.8], 7);
 
-      /* 한글 지도 타일: OSM 한국 (API 키 불필요) */
-      const tileLayer = L.tileLayer(
-        "https://tiles.osm.kr/hot/{z}/{x}/{y}.png",
-        {
-          maxZoom: 18,
-          minZoom: 5,
-          attribution: "© OpenStreetMap Korea (OSM Korea) 기여자",
-        }
-      );
-      tileLayer.addTo(map);
+      /* 깔끔한 배경: 도로·지명 없이 시/도 경계만 보이도록 */
+      const tileUrl = "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png";
+      const tileOpts = {
+        maxZoom: 18,
+        minZoom: 5,
+        attribution: "© OpenStreetMap, © Carto",
+      };
+      L.tileLayer(tileUrl, tileOpts).addTo(map);
+
+      /* 제주도·울릉도 인셋용 작은 지도 (표시 전용) */
+      const insetOpts = {
+        zoomControl: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        touchZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        dragging: false,
+        attributionControl: false,
+      };
+      state.insetMaps.jeju = L.map("map-inset-jeju", insetOpts).setView([33.4, 126.5], 9);
+      state.insetMaps.ulleungdo = L.map("map-inset-ulleungdo", insetOpts).setView([37.5, 130.85], 11);
+      L.tileLayer(tileUrl, { maxZoom: 18, minZoom: 5 }).addTo(state.insetMaps.jeju);
+      L.tileLayer(tileUrl, { maxZoom: 18, minZoom: 5 }).addTo(state.insetMaps.ulleungdo);
 
       setTimeout(() => {
         showSidoLayer(map);
