@@ -147,7 +147,11 @@
     #map {
       flex: 1;
       min-height: 300px;
-      touch-action: pan-x pan-y;
+      touch-action: manipulation;
+      cursor: pointer;
+    }
+    #map .leaflet-interactive {
+      cursor: pointer;
     }
 
     .list-panel {
@@ -970,25 +974,37 @@
       layer.setStyle(baseStyle);
     }
 
+    function runOnceOnTap(layer, handler) {
+      var lastRun = 0;
+      function run(e) {
+        var now = Date.now();
+        if (now - lastRun < 400) return;
+        lastRun = now;
+        handler(e);
+      }
+      layer.on("click", run);
+      layer.on("touchend", run);
+    }
+
     function attachSidoHandlers(feature, layer, map) {
       const baseStyle = styleForLevel(LEVELS.SIDO);
       layer.on({
         mouseover: (e) => highlightFeature(e),
         mouseout: (e) => resetHighlight(e, baseStyle),
-        click: () => {
-          const props = feature.properties || {};
-          state.selectedSido = {
-            code: props.code || props.SIDO_CD || props.sido_cd || null,
-            name: props.name || props.SIDO_NM || props.sido_nm || "시/도",
-          };
-          state.selectedSigungu = null;
-          state.selectedDong = null;
-          state.level = LEVELS.SIDO;
-          updateLevelPill();
-          renderBreadcrumbs();
-          showSigunguLayerForSido(state.selectedSido, layer, map);
-          renderMemoList();
-        },
+      });
+      runOnceOnTap(layer, () => {
+        const props = feature.properties || {};
+        state.selectedSido = {
+          code: props.code || props.SIDO_CD || props.sido_cd || null,
+          name: props.name || props.SIDO_NM || props.sido_nm || "시/도",
+        };
+        state.selectedSigungu = null;
+        state.selectedDong = null;
+        state.level = LEVELS.SIDO;
+        updateLevelPill();
+        renderBreadcrumbs();
+        showSigunguLayerForSido(state.selectedSido, layer, map);
+        renderMemoList();
       });
       const props = feature.properties || {};
       const name = props.name || props.SIDO_NM || props.sido_nm || "";
@@ -1002,21 +1018,21 @@
       layer.on({
         mouseover: (e) => highlightFeature(e),
         mouseout: (e) => resetHighlight(e, baseStyle),
-        click: () => {
-          const props = feature.properties || {};
-          state.selectedSigungu = {
-            code: props.code || props.SIG_CD || props.sig_cd || null,
-            name: props.name || props.SIG_KOR_NM || props.sig_kor_nm || "구/군",
-            sidoCode:
-              props.sidoCode || props.SIDO_CD || props.sido_cd || state.selectedSido?.code || null,
-          };
-          state.level = LEVELS.SIGUNGU;
-          state.selectedDong = null;
-          updateLevelPill();
-          renderBreadcrumbs();
-          showDongLayerForSigungu(state.selectedSigungu, layer, map);
-          renderMemoList();
-        },
+      });
+      runOnceOnTap(layer, () => {
+        const props = feature.properties || {};
+        state.selectedSigungu = {
+          code: props.code || props.SIG_CD || props.sig_cd || null,
+          name: props.name || props.SIG_KOR_NM || props.sig_kor_nm || "구/군",
+          sidoCode:
+            props.sidoCode || props.SIDO_CD || props.sido_cd || state.selectedSido?.code || null,
+        };
+        state.level = LEVELS.SIGUNGU;
+        state.selectedDong = null;
+        updateLevelPill();
+        renderBreadcrumbs();
+        showDongLayerForSigungu(state.selectedSigungu, layer, map);
+        renderMemoList();
       });
       const props = feature.properties || {};
       const name = props.name || props.SIG_KOR_NM || props.sig_kor_nm || "";
@@ -1030,30 +1046,30 @@
       layer.on({
         mouseover: (e) => highlightFeature(e),
         mouseout: (e) => resetHighlight(e, baseStyle),
-        click: () => {
-          const props = feature.properties || {};
-          state.selectedDong = {
-            code: props.code || props.EMD_CD || props.emd_cd || null,
-            name: props.name || props.EMD_KOR_NM || props.emd_kor_nm || "동",
-            sigunguCode:
-              props.sigunguCode ||
-              props.SIG_CD ||
-              props.sig_cd ||
-              state.selectedSigungu?.code ||
-              null,
-            sidoCode:
-              props.sidoCode ||
-              props.SIDO_CD ||
-              props.sido_cd ||
-              state.selectedSido?.code ||
-              null,
-          };
-          state.level = LEVELS.DONG;
-          updateLevelPill();
-          renderBreadcrumbs();
-          openMemoModal();
-          renderMemoList();
-        },
+      });
+      runOnceOnTap(layer, () => {
+        const props = feature.properties || {};
+        state.selectedDong = {
+          code: props.code || props.EMD_CD || props.emd_cd || null,
+          name: props.name || props.EMD_KOR_NM || props.emd_kor_nm || "동",
+          sigunguCode:
+            props.sigunguCode ||
+            props.SIG_CD ||
+            props.sig_cd ||
+            state.selectedSigungu?.code ||
+            null,
+          sidoCode:
+            props.sidoCode ||
+            props.SIDO_CD ||
+            props.sido_cd ||
+            state.selectedSido?.code ||
+            null,
+        };
+        state.level = LEVELS.DONG;
+        updateLevelPill();
+        renderBreadcrumbs();
+        openMemoModal();
+        renderMemoList();
       });
       const props = feature.properties || {};
       const name = props.name || props.EMD_KOR_NM || props.emd_kor_nm || "";
@@ -1258,17 +1274,19 @@
         touchZoom: false,
         boxZoom: false,
         keyboard: false,
+        dragging: false,
       });
       window._leafletMap = map;
 
       map.setView([36.5, 127.8], 7);
 
+      /* 한글 지도 타일: OSM 한국 (API 키 불필요) */
       const tileLayer = L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        "https://tiles.osm.kr/hot/{z}/{x}/{y}.png",
         {
           maxZoom: 18,
           minZoom: 5,
-          attribution: "© OpenStreetMap, © Carto",
+          attribution: "© OpenStreetMap Korea (OSM Korea) 기여자",
         }
       );
       tileLayer.addTo(map);
