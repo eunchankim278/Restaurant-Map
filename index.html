@@ -153,6 +153,7 @@
     }
     #map .leaflet-interactive {
       cursor: pointer;
+      pointer-events: auto !important;
     }
 
     .map-wrap {
@@ -190,6 +191,8 @@
     }
     .map-inset-ulleungdo {
       right: 12px;
+      top: 12px;
+      bottom: auto;
     }
     .map-inset-label {
       position: absolute;
@@ -203,6 +206,19 @@
       text-align: center;
       z-index: 1000;
       border-top: 1px solid var(--border);
+    }
+
+    /* 시/도 상시 라벨 */
+    .sido-label {
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      color: #1e3a8a !important;
+      background: rgba(255, 255, 255, 0.92) !important;
+      border: 1px solid rgba(30, 58, 138, 0.25) !important;
+      padding: 4px 8px !important;
+      border-radius: 6px !important;
+      white-space: nowrap !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
     }
 
     .list-panel {
@@ -990,10 +1006,10 @@
     function styleForLevel(level) {
       if (level === LEVELS.SIDO) {
         return {
-          color: "#2563eb",
-          weight: 1,
+          color: "#1d4ed8",
+          weight: 2,
           fillColor: "#bfdbfe",
-          fillOpacity: 0.7,
+          fillOpacity: 0.65,
         };
       }
       if (level === LEVELS.SIGUNGU) {
@@ -1038,15 +1054,20 @@
     }
 
     function runOnceOnTap(layer, handler) {
-      var lastRun = 0;
-      function run(e) {
-        var now = Date.now();
-        if (now - lastRun < 400) return;
-        lastRun = now;
+      function runFromTouch(e) {
+        if (e.originalEvent) {
+          e.originalEvent.preventDefault();
+          e.originalEvent.stopPropagation();
+        }
         handler(e);
       }
-      layer.on("click", run);
-      layer.on("touchend", run);
+      function runFromClick(e) {
+        var o = e.originalEvent;
+        if (o && (o.pointerType === "touch" || (o.sourceCapabilities && o.sourceCapabilities.firesTouchEvents))) return;
+        handler(e);
+      }
+      layer.on("touchend", runFromTouch);
+      layer.on("click", runFromClick);
     }
 
     function attachSidoHandlers(feature, layer, map) {
@@ -1072,7 +1093,12 @@
       const props = feature.properties || {};
       const name = props.name || props.SIDO_NM || props.sido_nm || "";
       if (name) {
-        layer.bindTooltip(name, { direction: "center", className: "sido-tooltip" });
+        layer.bindTooltip(name, {
+          permanent: true,
+          direction: "center",
+          className: "sido-label",
+          offset: [0, 0],
+        });
       }
     }
 
@@ -1174,11 +1200,11 @@
       }).addTo(map);
       state.geoLayers.sido = layer;
 
-      /* 전국이 한 화면에 나오도록 축소, 시/도만 보이게 */
+      /* 전국이 한 화면에 나오도록 축소 (전라남도 등 포함), 시/도만 보이게 */
       try {
         map.flyToBounds(layer.getBounds(), {
-          padding: [28, 28],
-          maxZoom: 7,
+          padding: [40, 40],
+          maxZoom: 6,
           duration: 0.6,
         });
       } catch (e) {}
